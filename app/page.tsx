@@ -4,11 +4,12 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Upload, List, FileSpreadsheet, Download } from 'lucide-react';
+import { Upload, List, FileSpreadsheet, Download, Zap, Shield, TrendingUp, CheckCircle2 } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import ProgressBar from './components/ProgressBar';
 import DataTable from './components/DataTable';
 import ErrorList from './components/ErrorList';
+import TemplateDownloader from './components/TemplateDownloader';
 import { ParsedRow, ValidationError } from '@/lib/db';
 import { validateRow, findDuplicates } from '@/utils/excelParser';
 
@@ -77,7 +78,6 @@ export default function Home() {
       return newRows;
     });
     
-    // Re-validate after update
     setTimeout(() => {
       const updatedRows = [...parsedRows];
       updatedRows[index] = { ...updatedRows[index], [field]: value };
@@ -114,7 +114,6 @@ export default function Home() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    // Check for errors
     const allErrors = parsedRows.flatMap((row, index) => validateRow(row, index));
     if (allErrors.length > 0) {
       setErrors(allErrors);
@@ -147,7 +146,7 @@ export default function Home() {
       
       const result = await response.json();
       
-      if (result.success) {
+      if (result.success || result.successCount > 0) {
         setSubmitResult({
           success: result.successCount,
           failed: result.failedCount,
@@ -162,7 +161,7 @@ export default function Home() {
           setFileName(null);
         }, 2000);
       } else {
-        alert(result.error || '提交失败');
+        alert(result.message || result.error || '提交失败');
       }
     } catch (error) {
       clearInterval(interval);
@@ -198,50 +197,56 @@ export default function Home() {
     document.body.removeChild(link);
   }, [parsedRows]);
 
-  const downloadTemplate = useCallback(() => {
-    const headers = ['发件人姓名', '发件人电话', '发件人地址', '收件人姓名', '收件人电话', '收件人地址', '重量 (kg)', '件数', '温层', '备注'];
-    const sampleRows = [
-      ['张三', '13800138000', '上海市浦东新区陆家嘴', '李四', '13900139000', '北京市朝阳区望京', '10.5', '5', '常温', '易碎品，小心轻放'],
-      ['王五', '13700137000', '广东省深圳市南山区', '赵六', '13600136000', '浙江省杭州市西湖区', '20.0', '10', '冷藏', ''],
-    ];
-    
-    const csvContent = [headers.join(','), ...sampleRows.map(r => r.join(','))].join('\n');
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', '导入模板.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, []);
-
   const tabs = [
     { id: 'upload' as TabType, label: '上传文件', icon: Upload },
     { id: 'preview' as TabType, label: '预览编辑', icon: FileSpreadsheet },
     { id: 'history' as TabType, label: '历史记录', icon: List },
   ];
 
+  const features = [
+    { icon: <Zap className="w-6 h-6" />, title: '智能识别', desc: '自动识别多种模板格式' },
+    { icon: <Shield className="w-6 h-6" />, title: '数据安全', desc: '严格的数据校验机制' },
+    { icon: <TrendingUp className="w-6 h-6" />, title: '高效处理', desc: '支持1000+条数据导入' },
+    { icon: <CheckCircle2 className="w-6 h-6" />, title: '一键提交', desc: '批量下单快速完成' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-              <FileSpreadsheet className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                <FileSpreadsheet className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  万能导入系统
+                </h1>
+                <p className="text-sm text-gray-500">多模板自动识别 · 批量下单</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">万能导入系统</h1>
-              <p className="text-sm text-gray-500">多模板自动识别 · 批量下单</p>
+            
+            <div className="flex items-center gap-6">
+              {features.map((feature, index) => (
+                <div key={index} className="flex items-center gap-2 text-sm text-gray-600 hover:text-indigo-600 transition-colors">
+                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600">
+                    {feature.icon}
+                  </div>
+                  <div>
+                    <p className="font-medium">{feature.title}</p>
+                    <p className="text-xs text-gray-400">{feature.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </header>
 
       {/* Tabs */}
-      <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
+      <div className="bg-white/60 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-1">
             {tabs.map(tab => {
@@ -250,13 +255,13 @@ export default function Home() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-all duration-300 ${
                     activeTab === tab.id
-                      ? 'text-primary-600 border-b-2 border-primary-600'
+                      ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-5 h-5" />
                   {tab.label}
                 </button>
               );
@@ -266,11 +271,42 @@ export default function Home() {
       </div>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-8">
         {activeTab === 'upload' && (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">上传 Excel 文件</h2>
+          <div className="max-w-3xl mx-auto">
+            {/* Hero Card */}
+            <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-8 text-white mb-8 shadow-xl shadow-indigo-500/25">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">欢迎使用万能导入系统</h2>
+                  <p className="text-white/80 mb-4">
+                    支持多种Excel模板自动识别，一键批量下单，让您的物流工作更高效
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <span className="px-3 py-1 bg-white/20 rounded-full text-sm">智能模板识别</span>
+                    <span className="px-3 py-1 bg-white/20 rounded-full text-sm">1000+数据支持</span>
+                    <span className="px-3 py-1 bg-white/20 rounded-full text-sm">实时错误校验</span>
+                    <span className="px-3 py-1 bg-white/20 rounded-full text-sm">一键提交</span>
+                  </div>
+                </div>
+                <div className="w-24 h-24 bg-white/10 rounded-2xl flex items-center justify-center">
+                  <FileSpreadsheet className="w-12 h-12" />
+                </div>
+              </div>
+            </div>
+            
+            {/* Upload Card */}
+            <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8 mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                  <Upload className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">上传 Excel 文件</h3>
+                  <p className="text-sm text-gray-500">支持 .xlsx 和 .xls 格式，拖拽或点击上传</p>
+                </div>
+              </div>
+              
               <FileUploader onFileUpload={handleFileUpload} disabled={uploading} />
               
               {uploading && (
@@ -281,67 +317,88 @@ export default function Home() {
                   />
                 </div>
               )}
-              
-              <button
-                onClick={downloadTemplate}
-                className="mt-4 w-full px-4 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                下载导入模板
-              </button>
-              
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <h3 className="font-medium text-blue-900 mb-2">支持的模板格式</h3>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• 自动识别列名（支持多种别名）</li>
-                  <li>• 支持 .xlsx 和 .xls 格式</li>
-                  <li>• 支持 1000+ 条数据导入</li>
-                  <li>• 自动记忆模板映射规则</li>
-                </ul>
-              </div>
             </div>
+            
+            {/* Template Downloader */}
+            <TemplateDownloader />
           </div>
         )}
 
         {activeTab === 'preview' && parsedRows.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">数据预览</h2>
-                <p className="text-sm text-gray-500">文件: {fileName} | 共 {parsedRows.length} 条</p>
+          <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center">
+                  <FileSpreadsheet className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">数据预览</h3>
+                  <p className="text-sm text-gray-500">文件: {fileName} | 共 {parsedRows.length} 条记录</p>
+                </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={handleExport}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center gap-2"
                 >
+                  <Download className="w-4 h-4" />
                   导出数据
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={errors.length > 0 || submitProgress > 0}
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-indigo-500/25"
                 >
-                  {submitProgress > 0 ? '提交中...' : '提交下单'}
+                  {submitProgress > 0 ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      提交中...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      提交下单
+                    </>
+                  )}
                 </button>
               </div>
             </div>
             
             {submitProgress > 0 && (
-              <div className="mb-4">
-                <ProgressBar progress={submitProgress} text="正在提交..." />
+              <div className="mb-6">
+                <ProgressBar progress={submitProgress} text="正在提交订单..." />
               </div>
             )}
             
             {submitResult && (
-              <div className={`mb-4 p-4 rounded-lg ${
+              <div className={`mb-6 p-4 rounded-xl ${
                 submitResult.failed === 0 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-yellow-100 text-yellow-800'
+                  ? 'bg-green-50 border border-green-200' 
+                  : 'bg-yellow-50 border border-yellow-200'
               }`}>
-                <p className="font-medium">
-                  提交完成！成功 {submitResult.success} 条，失败 {submitResult.failed} 条
-                </p>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    submitResult.failed === 0 ? 'bg-green-100' : 'bg-yellow-100'
+                  }`}>
+                    <CheckCircle2 className={`w-5 h-5 ${
+                      submitResult.failed === 0 ? 'text-green-600' : 'text-yellow-600'
+                    }`} />
+                  </div>
+                  <div>
+                    <p className={`font-semibold ${
+                      submitResult.failed === 0 ? 'text-green-800' : 'text-yellow-800'
+                    }`}>
+                      {submitResult.failed === 0 
+                        ? `🎉 提交成功！` 
+                        : `⚠️ 部分提交成功`}
+                    </p>
+                    <p className={`text-sm ${
+                      submitResult.failed === 0 ? 'text-green-600' : 'text-yellow-600'
+                    }`}>
+                      成功提交 {submitResult.success} 条，失败 {submitResult.failed} 条
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
             
@@ -362,6 +419,22 @@ export default function Home() {
           <OrdersHistory />
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="bg-white/60 backdrop-blur-sm border-t border-gray-200 mt-12">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              © 2024 万能导入系统 · 多模板自动识别 · 批量下单
+            </p>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-400">支持格式：.xlsx .xls .csv</span>
+              <span className="text-sm text-gray-400">|</span>
+              <span className="text-sm text-gray-400">最大支持：1000+ 条数据</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -415,10 +488,12 @@ function OrdersHistory() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-          <span className="ml-3 text-gray-600">加载中...</span>
+      <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8">
+        <div className="flex justify-center items-center py-16">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-gray-600 font-medium">加载中...</span>
+          </div>
         </div>
       </div>
     );
@@ -426,31 +501,42 @@ function OrdersHistory() {
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">历史运单</h2>
+      <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-lg flex items-center justify-center">
+              <List className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">历史运单</h3>
+              <p className="text-sm text-gray-500">查看已提交的订单记录</p>
+            </div>
+          </div>
           <form onSubmit={handleSearch} className="flex gap-2">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="搜索收件人姓名..."
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200"
+              className="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
             />
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
+              className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
             >
               搜索
             </button>
           </form>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-          <p className="text-red-700">⚠️ {error}</p>
-          <p className="text-sm text-red-600 mt-2">请检查数据库连接配置，确保 DATABASE_URL 环境变量已正确设置</p>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <p className="text-red-700 font-medium mb-2">{error}</p>
+          <p className="text-sm text-red-600 mb-4">请检查数据库连接配置，确保 DATABASE_URL 环境变量已正确设置</p>
           <button
             onClick={() => fetchOrders()}
-            className="mt-3 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
+            className="px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
           >
             重新加载
           </button>
@@ -460,20 +546,28 @@ function OrdersHistory() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">历史运单</h2>
+    <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
+            <List className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">历史运单</h3>
+            <p className="text-sm text-gray-500">共 {pagination.total} 条记录</p>
+          </div>
+        </div>
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="搜索收件人姓名..."
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200"
+            className="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
           />
           <button
             type="submit"
-            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
+            className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
           >
             搜索
           </button>
@@ -482,21 +576,21 @@ function OrdersHistory() {
       
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-gradient-to-r from-slate-50 to-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
                 订单编号
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
                 外部编码
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
                 发件人
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
                 收件人
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
                 创建时间
               </th>
             </tr>
@@ -504,9 +598,9 @@ function OrdersHistory() {
           <tbody>
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center">
-                  <div className="bg-gray-50 rounded-lg p-8">
-                    <div className="text-4xl mb-4">📦</div>
+                <td colSpan={5} className="px-6 py-16 text-center">
+                  <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-8">
+                    <div className="text-5xl mb-4">📦</div>
                     <p className="text-gray-600 font-medium mb-2">暂无历史运单</p>
                     <p className="text-sm text-gray-500">
                       {searchTerm 
@@ -518,12 +612,12 @@ function OrdersHistory() {
               </tr>
             ) : (
               orders.map(order => (
-                <tr key={order.id} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-800">{order.id}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{order.external_code || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-800">{order.sender_name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-800">{order.receiver_name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
+                <tr key={order.id} className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors">
+                  <td className="px-6 py-4 text-sm text-gray-800 font-medium">{order.id}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{order.external_code || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800">{order.sender_name}</td>
+                  <td className="px-6 py-4 text-sm text-gray-800">{order.receiver_name}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
                     {new Date(order.created_at).toLocaleString('zh-CN')}
                   </td>
                 </tr>
@@ -534,21 +628,39 @@ function OrdersHistory() {
       </div>
       
       {pagination.pages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-4">
+        <div className="flex justify-center items-center gap-3 mt-6">
           <button
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+            className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             上一页
           </button>
-          <span className="text-sm text-gray-600">
-            第 {currentPage} / {pagination.pages} 页
-          </span>
+          <div className="flex items-center gap-2">
+            {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+              const pageNum = i + 1;
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                    currentPage === pageNum
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            {pagination.pages > 5 && (
+              <span className="text-gray-400">...</span>
+            )}
+          </div>
           <button
             onClick={() => setCurrentPage(p => Math.min(pagination.pages, p + 1))}
             disabled={currentPage === pagination.pages}
-            className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+            className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             下一页
           </button>
