@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
       data: {
         headers,
         rows: parsedRows,
+        originalRows: rows,
         mapping,
         errors: allErrors,
         duplicates,

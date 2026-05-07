@@ -110,7 +110,7 @@ export function parseRow(row: any[], mapping: Record<string, number>): ParsedRow
 export function validateRow(row: ParsedRow, rowIndex: number): ValidationError[] {
   const errors: ValidationError[] = [];
   
-  // Required fields
+  // Required fields - 发件人信息
   if (!row.sender_name) {
     errors.push({ rowIndex, field: 'sender_name', message: '发件人姓名不能为空' });
   }
@@ -125,6 +125,7 @@ export function validateRow(row: ParsedRow, rowIndex: number): ValidationError[]
     errors.push({ rowIndex, field: 'sender_address', message: '发件人地址不能为空' });
   }
   
+  // Required fields - 收件人信息
   if (!row.receiver_name) {
     errors.push({ rowIndex, field: 'receiver_name', message: '收件人姓名不能为空' });
   }
@@ -158,9 +159,12 @@ export function validateRow(row: ParsedRow, rowIndex: number): ValidationError[]
   // Temperature validation
   if (!row.temperature) {
     errors.push({ rowIndex, field: 'temperature', message: '温层不能为空' });
-  } else if (!['常温', '冷藏', '冷冻'].includes(row.temperature)) {
+  } else if (!['常温', '冷藏', '冷冻', 'ambient', 'chilled', 'frozen'].includes(row.temperature)) {
     errors.push({ rowIndex, field: 'temperature', message: '温层必须是常温、冷藏或冷冻之一' });
   }
+  
+  // Optional fields - 外部编码和备注允许缺失，不报错
+  // external_code 和 remark 是可选字段，缺失时不报错
   
   return errors;
 }

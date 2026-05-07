@@ -10,8 +10,9 @@ import ProgressBar from './components/ProgressBar';
 import DataTable from './components/DataTable';
 import ErrorList from './components/ErrorList';
 import TemplateDownloader from './components/TemplateDownloader';
+import FieldMapper from './components/FieldMapper';
 import { ParsedRow, ValidationError } from '@/lib/db';
-import { validateRow, findDuplicates } from '@/utils/excelParser';
+import { validateRow, findDuplicates, parseRow } from '@/utils/excelParser';
 
 type TabType = 'upload' | 'preview' | 'history';
 
@@ -26,6 +27,8 @@ export default function Home() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [submitProgress, setSubmitProgress] = useState(0);
   const [submitResult, setSubmitResult] = useState<{ success: number; failed: number } | null>(null);
+  const [mapping, setMapping] = useState<Record<string, number>>({});
+  const [originalRows, setOriginalRows] = useState<any[][]>([]);
 
   const handleFileUpload = useCallback(async (file: File) => {
     setUploading(true);
@@ -55,6 +58,8 @@ export default function Home() {
         setDuplicates(result.data.duplicates);
         setHeaders(result.data.headers);
         setFileName(file.name);
+        setMapping(result.data.mapping || {});
+        setOriginalRows(result.data.originalRows || []);
         setTimeout(() => {
           setActiveTab('preview');
           setUploadProgress(0);
@@ -112,6 +117,17 @@ export default function Home() {
     };
     setParsedRows(prev => [...prev, newRow]);
   }, []);
+
+  const handleMappingChange = useCallback((newMapping: Record<string, number>) => {
+    setMapping(newMapping);
+    // Re-parse rows with new mapping
+    const newParsedRows = originalRows.map(row => parseRow(row, newMapping));
+    setParsedRows(newParsedRows);
+    // Re-validate
+    const newErrors = newParsedRows.flatMap((row, index) => validateRow(row, index));
+    setErrors(newErrors);
+    setDuplicates(findDuplicates(newParsedRows));
+  }, [originalRows]);
 
   const handleSubmit = useCallback(async () => {
     const allErrors = parsedRows.flatMap((row, index) => validateRow(row, index));
@@ -401,6 +417,12 @@ export default function Home() {
                 </div>
               </div>
             )}
+            
+            <FieldMapper
+              headers={headers}
+              currentMapping={mapping}
+              onMappingChange={handleMappingChange}
+            />
             
             <ErrorList errors={errors} />
             
