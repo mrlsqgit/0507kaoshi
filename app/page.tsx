@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { Upload, List, FileSpreadsheet, Download, Zap, Shield, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { Upload, List, FileSpreadsheet, Download, Zap, Shield, TrendingUp, CheckCircle2, X } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import ProgressBar from './components/ProgressBar';
 import DataTable from './components/DataTable';
@@ -496,12 +496,13 @@ export default function Home() {
 
 // OrdersHistory Component
 function OrdersHistory() {
-  const [orders, setOrders] = useState<{ id: string; sender_name: string; receiver_name: string; external_code: string | null; created_at: string }[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, pages: 1 });
   const [error, setError] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
   const fetchOrders = useCallback(async (page = 1) => {
     setLoading(true);
@@ -533,12 +534,159 @@ function OrdersHistory() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
     fetchOrders(1);
+  };
+
+  // Order Detail Modal
+  const OrderDetailModal = () => {
+    if (!selectedOrder) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+                <FileSpreadsheet className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">运单详情</h3>
+                <p className="text-sm text-gray-500">订单编号：{selectedOrder.id}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedOrder(null)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            {/* Sender Info */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                发件人信息
+              </h4>
+              <div className="bg-blue-50 rounded-xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">姓名</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.sender_name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">电话</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.sender_phone}</p>
+                </div>
+                <div className="md:col-span-1">
+                  <p className="text-xs text-gray-500 mb-1">地址</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.sender_address}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Receiver Info */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                收件人信息
+              </h4>
+              <div className="bg-emerald-50 rounded-xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">姓名</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.receiver_name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">电话</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.receiver_phone}</p>
+                </div>
+                <div className="md:col-span-1">
+                  <p className="text-xs text-gray-500 mb-1">地址</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.receiver_address}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Order Info */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                订单信息
+              </h4>
+              <div className="bg-amber-50 rounded-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">外部编码</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.external_code || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">重量</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.weight} kg</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">件数</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.quantity}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">温层</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.temperature}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">备注</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedOrder.remark || '-'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Meta Info */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                系统信息
+              </h4>
+              <div className="bg-gray-50 rounded-xl p-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">状态</p>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    selectedOrder.status === 'submitted' ? 'bg-green-100 text-green-800' :
+                    selectedOrder.status === 'failed' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {selectedOrder.status === 'submitted' ? '已提交' :
+                     selectedOrder.status === 'failed' ? '失败' : '待处理'}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">创建时间</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    {new Date(selectedOrder.created_at).toLocaleString('zh-CN')}
+                  </p>
+                </div>
+                {selectedOrder.error_message && (
+                  <div className="md:col-span-1">
+                    <p className="text-xs text-gray-500 mb-1">错误信息</p>
+                    <p className="text-sm font-medium text-red-600">{selectedOrder.error_message}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 border-t border-gray-200 flex justify-end">
+            <button
+              onClick={() => setSelectedOrder(null)}
+              className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -601,126 +749,169 @@ function OrdersHistory() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
-            <List className="w-5 h-5 text-white" />
+    <>
+      <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
+              <List className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">已导入运单</h3>
+              <p className="text-sm text-gray-500">共 {pagination.total} 条记录 · 数据从数据库读取</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">历史运单</h3>
-            <p className="text-sm text-gray-500">共 {pagination.total} 条记录</p>
-          </div>
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="搜索收件人姓名..."
+              className="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+            />
+            <button
+              type="submit"
+              className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
+            >
+              搜索
+            </button>
+          </form>
         </div>
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="搜索收件人姓名..."
-            className="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
-          />
-          <button
-            type="submit"
-            className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
-          >
-            搜索
-          </button>
-        </form>
-      </div>
-      
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gradient-to-r from-slate-50 to-gray-50">
-            <tr>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
-                订单编号
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
-                外部编码
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
-                发件人
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
-                收件人
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
-                创建时间
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.length === 0 ? (
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-slate-50 to-gray-50">
               <tr>
-                <td colSpan={5} className="px-6 py-16 text-center">
-                  <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-8">
-                    <div className="text-5xl mb-4">📦</div>
-                    <p className="text-gray-600 font-medium mb-2">暂无历史运单</p>
-                    <p className="text-sm text-gray-500">
-                      {searchTerm 
-                        ? '未找到匹配的运单，请尝试其他搜索条件' 
-                        : '还没有提交过订单，请先上传Excel文件并提交下单'}
-                    </p>
-                  </div>
-                </td>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                  订单编号
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                  外部编码
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                  发件人
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                  收件人
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                  重量/件数
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                  温层
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                  创建时间
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                  操作
+                </th>
               </tr>
-            ) : (
-              orders.map(order => (
-                <tr key={order.id} className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-800 font-medium">{order.id}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{order.external_code || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{order.sender_name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{order.receiver_name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {new Date(order.created_at).toLocaleString('zh-CN')}
+            </thead>
+            <tbody>
+              {orders.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-16 text-center">
+                    <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-8">
+                      <div className="text-5xl mb-4">📦</div>
+                      <p className="text-gray-600 font-medium mb-2">暂无历史运单</p>
+                      <p className="text-sm text-gray-500">
+                        {searchTerm 
+                          ? '未找到匹配的运单，请尝试其他搜索条件' 
+                          : '还没有提交过订单，请先上传Excel文件并提交下单'}
+                      </p>
+                    </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                orders.map(order => (
+                  <tr key={order.id} className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors">
+                    <td className="px-6 py-4 text-sm text-gray-800 font-medium">{order.id}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{order.external_code || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-800">{order.sender_name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-800">{order.receiver_name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {order.weight} kg / {order.quantity} 件
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        order.temperature === '冷藏' ? 'bg-blue-100 text-blue-800' :
+                        order.temperature === '冷冻' ? 'bg-cyan-100 text-cyan-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {order.temperature}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {new Date(order.created_at).toLocaleString('zh-CN')}
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                      >
+                        查看详情
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {pagination.pages > 1 && (
+          <div className="flex justify-center items-center gap-3 mt-6">
+            <button
+              onClick={() => {
+                setCurrentPage(p => Math.max(1, p - 1));
+                fetchOrders(Math.max(1, currentPage - 1));
+              }}
+              disabled={currentPage === 1}
+              className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              上一页
+            </button>
+            <div className="flex items-center gap-2">
+              {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => {
+                      setCurrentPage(pageNum);
+                      fetchOrders(pageNum);
+                    }}
+                    className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              {pagination.pages > 5 && (
+                <span className="text-gray-400">...</span>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                const nextPage = Math.min(pagination.pages, currentPage + 1);
+                setCurrentPage(nextPage);
+                fetchOrders(nextPage);
+              }}
+              disabled={currentPage === pagination.pages}
+              className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              下一页
+            </button>
+          </div>
+        )}
       </div>
       
-      {pagination.pages > 1 && (
-        <div className="flex justify-center items-center gap-3 mt-6">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            上一页
-          </button>
-          <div className="flex items-center gap-2">
-            {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
-              const pageNum = i + 1;
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`w-8 h-8 text-sm rounded-lg transition-colors ${
-                    currentPage === pageNum
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            {pagination.pages > 5 && (
-              <span className="text-gray-400">...</span>
-            )}
-          </div>
-          <button
-            onClick={() => setCurrentPage(p => Math.min(pagination.pages, p + 1))}
-            disabled={currentPage === pagination.pages}
-            className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            下一页
-          </button>
-        </div>
-      )}
-    </div>
+      <OrderDetailModal />
+    </>
   );
 }
