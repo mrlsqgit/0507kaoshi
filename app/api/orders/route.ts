@@ -102,33 +102,48 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // 使用批量插入提高性能
+    const BATCH_SIZE = 100;
+    const totalOrders = orders.length;
     let successCount = 0;
     let failedCount = 0;
     const errors: string[] = [];
     
-    for (const order of orders) {
-      try {
-        await query(
-          'INSERT INTO orders (external_code, sender_name, sender_phone, sender_address, receiver_name, receiver_phone, receiver_address, weight, quantity, temperature, remark) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
-          [
-            order.external_code || null,
-            order.sender_name,
-            order.sender_phone,
-            order.sender_address,
-            order.receiver_name,
-            order.receiver_phone,
-            order.receiver_address,
-            order.weight,
-            order.quantity,
-            order.temperature,
-            order.remark || null,
-          ]
+    for (let i = 0; i < totalOrders; i += BATCH_SIZE) {
+      const batch = orders.slice(i, Math.min(i + BATCH_SIZE, totalOrders));
+      
+      // 构建批量插入SQL
+      const placeholders: string[] = [];
+      const params: any[] = [];
+      
+      for (let j = 0; j < batch.length; j++) {
+        const order = batch[j];
+        const baseIndex = j * 11 + 1;
+        placeholders.push(`($${baseIndex}, $${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5}, $${baseIndex + 6}, $${baseIndex + 7}, $${baseIndex + 8}, $${baseIndex + 9}, $${baseIndex + 10})`);
+        params.push(
+          order.external_code || null,
+          order.sender_name,
+          order.sender_phone,
+          order.sender_address,
+          order.receiver_name,
+          order.receiver_phone,
+          order.receiver_address,
+          order.weight,
+          order.quantity,
+          order.temperature,
+          order.remark || null,
         );
-        successCount++;
+      }
+      
+      const sql = `INSERT INTO orders (external_code, sender_name, sender_phone, sender_address, receiver_name, receiver_phone, receiver_address, weight, quantity, temperature, remark) VALUES ${placeholders.join(', ')}`;
+      
+      try {
+        await query(sql, params);
+        successCount += batch.length;
       } catch (err: any) {
-        failedCount++;
-        errors.push(`${order.external_code || 'Unknown'}: ${err.message}`);
-        console.error('Failed to insert order:', err.message);
+        failedCount += batch.length;
+        errors.push(`批量 ${i + 1}-${i + batch.length}: ${err.message}`);
+        console.error('Failed to insert batch:', err.message);
       }
     }
     
