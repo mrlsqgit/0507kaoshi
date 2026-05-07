@@ -12,6 +12,7 @@ import DataTable from './components/DataTable';
 import ErrorList from './components/ErrorList';
 import TemplateDownloader from './components/TemplateDownloader';
 import FieldMapper from './components/FieldMapper';
+import { useToast } from './components/Toast';
 import { ParsedRow, ValidationError } from '@/lib/db';
 import { validateRow, findDuplicates, parseRow } from '@/utils/excelParser';
 
@@ -30,6 +31,9 @@ export default function Home() {
   const [submitResult, setSubmitResult] = useState<{ success: number; failed: number } | null>(null);
   const [mapping, setMapping] = useState<Record<string, number>>({});
   const [originalRows, setOriginalRows] = useState<any[][]>([]);
+  
+  // Toast notification
+  const { showToast, ToastContainer } = useToast();
 
   const handleFileUpload = useCallback(async (file: File) => {
     setUploading(true);
@@ -61,21 +65,24 @@ export default function Home() {
         setFileName(file.name);
         setMapping(result.data.mapping || {});
         setOriginalRows(result.data.originalRows || []);
+        
+        showToast('success', `✅ 文件导入成功！共 ${result.data.totalRows} 条记录`);
+        
         setTimeout(() => {
           setActiveTab('preview');
           setUploadProgress(0);
         }, 500);
       } else {
-        alert(result.error || '上传失败');
+        showToast('error', `❌ ${result.error || '上传失败'}`);
       }
     } catch (error) {
       clearInterval(interval);
       console.error('Upload error:', error);
-      alert('上传失败，请重试');
+      showToast('error', '❌ 上传失败，请重试');
     } finally {
       setUploading(false);
     }
-  }, []);
+  }, [showToast]);
 
   const handleRowUpdate = useCallback((index: number, field: string, value: string) => {
     setParsedRows(prev => {
@@ -134,14 +141,19 @@ export default function Home() {
     const allErrors = parsedRows.flatMap((row, index) => validateRow(row, index));
     if (allErrors.length > 0) {
       setErrors(allErrors);
-      alert(`存在 ${allErrors.length} 个错误，请先修正`);
+      showToast('warning', `⚠️ 存在 ${allErrors.length} 个错误，请先修正`);
       return;
     }
     
     setSubmitProgress(0);
+    const totalRows = parsedRows.length;
+    let processedRows = 0;
+    
     const interval = setInterval(() => {
-      setSubmitProgress(prev => Math.min(prev + Math.random() * 10, 90));
-    }, 300);
+      processedRows = Math.min(processedRows + Math.floor(Math.random() * 3) + 1, totalRows);
+      const progress = Math.min((processedRows / totalRows) * 90, 90);
+      setSubmitProgress(progress);
+    }, 200);
     
     try {
       const orders = parsedRows.map(row => ({
@@ -168,6 +180,13 @@ export default function Home() {
           success: result.successCount,
           failed: result.failedCount,
         });
+        
+        if (result.failedCount === 0) {
+          showToast('success', `🎉 提交成功！共 ${result.successCount} 条订单`);
+        } else {
+          showToast('warning', `⚠️ 部分提交成功！成功 ${result.successCount} 条，失败 ${result.failedCount} 条`);
+        }
+        
         setTimeout(() => {
           setActiveTab('history');
           setSubmitProgress(0);
@@ -178,14 +197,14 @@ export default function Home() {
           setFileName(null);
         }, 2000);
       } else {
-        alert(result.message || result.error || '提交失败');
+        showToast('error', `❌ ${result.message || result.error || '提交失败'}`);
       }
     } catch (error) {
       clearInterval(interval);
       console.error('Submit error:', error);
-      alert('提交失败，请重试');
+      showToast('error', '❌ 提交失败，请重试');
     }
-  }, [parsedRows]);
+  }, [parsedRows, showToast]);
 
   const handleExport = useCallback(() => {
     const headers = ['发件人姓名', '发件人电话', '发件人地址', '收件人姓名', '收件人电话', '收件人地址', '重量 (kg)', '件数', '温层', '备注'];
@@ -452,6 +471,9 @@ export default function Home() {
           <OrdersHistory />
         )}
       </main>
+
+      {/* Toast Notifications */}
+      <ToastContainer />
 
       {/* Footer */}
       <footer className="bg-white/60 backdrop-blur-sm border-t border-gray-200 mt-12">
