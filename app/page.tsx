@@ -4,6 +4,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { Upload, List, FileSpreadsheet, Download, Zap, Shield, TrendingUp, CheckCircle2 } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import ProgressBar from './components/ProgressBar';
@@ -187,30 +188,39 @@ export default function Home() {
   }, [parsedRows]);
 
   const handleExport = useCallback(() => {
-    const headers = ['发件人姓名', '发件人电话', '发件人地址', '收件人姓名', '收件人电话', '收件人地址', '重量', '件数', '温层', '备注'];
-    const rows = parsedRows.map(row => [
-      row.sender_name,
-      row.sender_phone,
-      row.sender_address,
-      row.receiver_name,
-      row.receiver_phone,
-      row.receiver_address,
-      row.weight,
-      row.quantity,
-      row.temperature,
-      row.remark || '',
-    ]);
+    const headers = ['发件人姓名', '发件人电话', '发件人地址', '收件人姓名', '收件人电话', '收件人地址', '重量 (kg)', '件数', '温层', '备注'];
+    const rows = parsedRows.map(row => ({
+      '发件人姓名': row.sender_name,
+      '发件人电话': row.sender_phone,
+      '发件人地址': row.sender_address,
+      '收件人姓名': row.receiver_name,
+      '收件人电话': row.receiver_phone,
+      '收件人地址': row.receiver_address,
+      '重量 (kg)': row.weight,
+      '件数': row.quantity,
+      '温层': row.temperature,
+      '备注': row.remark || '',
+    }));
     
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `export_${Date.now()}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '订单数据');
+    
+    // Set column widths
+    worksheet['!cols'] = [
+      { wch: 15 }, // 发件人姓名
+      { wch: 15 }, // 发件人电话
+      { wch: 25 }, // 发件人地址
+      { wch: 15 }, // 收件人姓名
+      { wch: 15 }, // 收件人电话
+      { wch: 25 }, // 收件人地址
+      { wch: 12 }, // 重量
+      { wch: 8 },  // 件数
+      { wch: 10 }, // 温层
+      { wch: 20 }, // 备注
+    ];
+    
+    XLSX.writeFile(workbook, `export_${Date.now()}.xlsx`);
   }, [parsedRows]);
 
   const tabs = [
@@ -433,6 +443,7 @@ export default function Home() {
               onRowUpdate={handleRowUpdate}
               onRowDelete={handleRowDelete}
               onRowAdd={handleRowAdd}
+              onErrorsChange={setErrors}
             />
           </div>
         )}
