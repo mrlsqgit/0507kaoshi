@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Upload, List, FileSpreadsheet } from 'lucide-react';
+import { Upload, List, FileSpreadsheet, Download } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import ProgressBar from './components/ProgressBar';
 import DataTable from './components/DataTable';
@@ -198,6 +198,25 @@ export default function Home() {
     document.body.removeChild(link);
   }, [parsedRows]);
 
+  const downloadTemplate = useCallback(() => {
+    const headers = ['发件人姓名', '发件人电话', '发件人地址', '收件人姓名', '收件人电话', '收件人地址', '重量 (kg)', '件数', '温层', '备注'];
+    const sampleRows = [
+      ['张三', '13800138000', '上海市浦东新区陆家嘴', '李四', '13900139000', '北京市朝阳区望京', '10.5', '5', '常温', '易碎品，小心轻放'],
+      ['王五', '13700137000', '广东省深圳市南山区', '赵六', '13600136000', '浙江省杭州市西湖区', '20.0', '10', '冷藏', ''],
+    ];
+    
+    const csvContent = [headers.join(','), ...sampleRows.map(r => r.join(','))].join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', '导入模板.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, []);
+
   const tabs = [
     { id: 'upload' as TabType, label: '上传文件', icon: Upload },
     { id: 'preview' as TabType, label: '预览编辑', icon: FileSpreadsheet },
@@ -262,6 +281,14 @@ export default function Home() {
                   />
                 </div>
               )}
+              
+              <button
+                onClick={downloadTemplate}
+                className="mt-4 w-full px-4 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                下载导入模板
+              </button>
               
               <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                 <h3 className="font-medium text-blue-900 mb-2">支持的模板格式</h3>
