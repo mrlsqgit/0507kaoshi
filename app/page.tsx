@@ -74,11 +74,13 @@ export default function Home() {
         }, 500);
       } else {
         showToast('error', `❌ ${result.error || '上传失败'}`);
+        throw new Error(result.error || '上传失败');
       }
     } catch (error) {
       clearInterval(interval);
       console.error('Upload error:', error);
       showToast('error', '❌ 上传失败，请重试');
+      throw error;
     } finally {
       setUploading(false);
     }
@@ -513,7 +515,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">
-              © 2024 万能导入系统 · 多模板自动识别 · 批量下单
+              © 2026 万能导入系统 · 多模板自动识别 · 批量下单
             </p>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-400">支持格式：.xlsx .xls .csv</span>
@@ -532,10 +534,34 @@ function OrdersHistory() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchType, setSearchType] = useState<'receiverName' | 'externalCode' | 'date'>('receiverName');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [pagination, setPagination] = useState({ total: 0, pages: 1 });
   const [error, setError] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+
+  // Format datetime with UTC+8 timezone
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
+    // Convert to UTC+8 timezone
+    const offset = 8 * 60; // UTC+8 in minutes
+    const utcDate = new Date(date.getTime() + offset * 60 * 1000);
+    return utcDate.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  };
 
   const fetchOrders = useCallback(async (page = 1) => {
     setLoading(true);
@@ -543,9 +569,21 @@ function OrdersHistory() {
     try {
       const url = new URL('/api/orders', window.location.origin);
       url.searchParams.set('page', String(page));
-      url.searchParams.set('pageSize', '20');
+      url.searchParams.set('pageSize', String(pageSize));
+      
       if (searchTerm) {
-        url.searchParams.set('receiverName', searchTerm);
+        if (searchType === 'receiverName') {
+          url.searchParams.set('receiverName', searchTerm);
+        } else if (searchType === 'externalCode') {
+          url.searchParams.set('externalCode', searchTerm);
+        }
+      }
+      
+      if (dateRange.start) {
+        url.searchParams.set('startDate', dateRange.start);
+      }
+      if (dateRange.end) {
+        url.searchParams.set('endDate', dateRange.end);
       }
       
       const response = await fetch(url.toString());
@@ -563,7 +601,7 @@ function OrdersHistory() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, [searchTerm, searchType, dateRange, pageSize]);
 
   useEffect(() => {
     fetchOrders();
@@ -571,6 +609,11 @@ function OrdersHistory() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setCurrentPage(1);
+    fetchOrders(1);
+  };
+
+  const handleDateFilter = () => {
     setCurrentPage(1);
     fetchOrders(1);
   };
@@ -696,7 +739,7 @@ function OrdersHistory() {
                 <div>
                   <p className="text-xs text-gray-500 mb-1">创建时间</p>
                   <p className="text-sm font-medium text-gray-800">
-                    {new Date(selectedOrder.created_at).toLocaleString('zh-CN')}
+                    {formatDateTime(selectedOrder.created_at)}
                   </p>
                 </div>
                 {selectedOrder.error_message && (
@@ -784,59 +827,128 @@ function OrdersHistory() {
   return (
     <>
       <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
-              <List className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">已导入运单</h3>
-              <p className="text-sm text-gray-500">共 {pagination.total} 条记录 · 数据从数据库读取</p>
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
+                <List className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">已导入运单</h3>
+                <p className="text-sm text-gray-500">共 {pagination.total} 条记录 · 数据从数据库读取</p>
+              </div>
             </div>
           </div>
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="搜索收件人姓名..."
-              className="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
-            />
-            <button
-              type="submit"
-              className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
-            >
-              搜索
-            </button>
-          </form>
+          
+          {/* Search Filters */}
+          <div className="bg-gray-50 rounded-xl p-4">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Search Type Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">搜索类型：</span>
+                <select
+                  value={searchType}
+                  onChange={(e) => setSearchType(e.target.value as 'receiverName' | 'externalCode' | 'date')}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 bg-white"
+                >
+                  <option value="receiverName">收件人姓名</option>
+                  <option value="externalCode">外部编码</option>
+                </select>
+              </div>
+              
+              {/* Search Input */}
+              {(searchType === 'receiverName' || searchType === 'externalCode') && (
+                <form onSubmit={handleSearch} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder={searchType === 'receiverName' ? '搜索收件人姓名...' : '搜索外部编码...'}
+                    className="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                  />
+                  <button
+                    type="submit"
+                    className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
+                  >
+                    搜索
+                  </button>
+                </form>
+              )}
+              
+              {/* Date Range Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">提交时间：</span>
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                />
+                <span className="text-gray-400">至</span>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+                />
+                <button
+                  onClick={handleDateFilter}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  筛选
+                </button>
+              </div>
+              
+              {/* Reset Button */}
+              {(searchTerm || dateRange.start || dateRange.end) && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setDateRange({ start: '', end: '' });
+                    setCurrentPage(1);
+                    fetchOrders(1);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  重置筛选
+                </button>
+              )}
+            </div>
+          </div>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gradient-to-r from-slate-50 to-gray-50">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
                   订单编号
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
                   外部编码
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
-                  发件人
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                  发件人姓名
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
-                  收件人
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                  发件人电话
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                  收件人姓名
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                  收件人电话
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
                   重量/件数
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
                   温层
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
                   创建时间
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap">
                   操作
                 </th>
               </tr>
@@ -844,7 +956,7 @@ function OrdersHistory() {
             <tbody>
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16 text-center">
+                  <td colSpan={10} className="px-6 py-16 text-center">
                     <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-8">
                       <div className="text-5xl mb-4">📦</div>
                       <p className="text-gray-600 font-medium mb-2">暂无历史运单</p>
@@ -859,14 +971,16 @@ function OrdersHistory() {
               ) : (
                 orders.map(order => (
                   <tr key={order.id} className="border-b border-gray-100 hover:bg-indigo-50/50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-gray-800 font-medium">{order.id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{order.external_code || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{order.sender_name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{order.receiver_name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-800 font-medium whitespace-nowrap">{order.id}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{order.external_code || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800 whitespace-nowrap">{order.sender_name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{order.sender_phone}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800 whitespace-nowrap">{order.receiver_name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{order.receiver_phone}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                       {order.weight} kg / {order.quantity} 件
                     </td>
-                    <td className="px-6 py-4 text-sm">
+                    <td className="px-4 py-3 text-sm whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         order.temperature === '冷藏' ? 'bg-blue-100 text-blue-800' :
                         order.temperature === '冷冻' ? 'bg-cyan-100 text-cyan-800' :
@@ -875,10 +989,10 @@ function OrdersHistory() {
                         {order.temperature}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(order.created_at).toLocaleString('zh-CN')}
+                    <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                      {formatDateTime(order.created_at)}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <button
                         onClick={() => setSelectedOrder(order)}
                         className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
@@ -893,55 +1007,86 @@ function OrdersHistory() {
           </table>
         </div>
         
-        {pagination.pages > 1 && (
-          <div className="flex justify-center items-center gap-3 mt-6">
-            <button
-              onClick={() => {
-                setCurrentPage(p => Math.max(1, p - 1));
-                fetchOrders(Math.max(1, currentPage - 1));
-              }}
-              disabled={currentPage === 1}
-              className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              上一页
-            </button>
+        <div className="flex justify-center items-center gap-3 mt-6">
+            {/* Page Size Selector - Always show */}
             <div className="flex items-center gap-2">
-              {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => {
-                      setCurrentPage(pageNum);
-                      fetchOrders(pageNum);
-                    }}
-                    className={`w-8 h-8 text-sm rounded-lg transition-colors ${
-                      currentPage === pageNum
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              {pagination.pages > 5 && (
-                <span className="text-gray-400">...</span>
-              )}
+              <span className="text-sm text-gray-600">每页:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                  fetchOrders(1);
+                }}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
+              >
+                <option value={10}>10条</option>
+                <option value={20}>20条</option>
+                <option value={50}>50条</option>
+                <option value={100}>100条</option>
+              </select>
             </div>
-            <button
-              onClick={() => {
-                const nextPage = Math.min(pagination.pages, currentPage + 1);
-                setCurrentPage(nextPage);
-                fetchOrders(nextPage);
-              }}
-              disabled={currentPage === pagination.pages}
-              className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              下一页
-            </button>
+            
+            {/* Pagination Controls - Only show when needed */}
+            {pagination.pages > 1 && (
+              <>
+                <div className="h-6 w-px bg-gray-300"></div>
+                
+                <button
+                  onClick={() => {
+                    setCurrentPage(p => Math.max(1, p - 1));
+                    fetchOrders(Math.max(1, currentPage - 1));
+                  }}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  上一页
+                </button>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => {
+                          setCurrentPage(pageNum);
+                          fetchOrders(pageNum);
+                        }}
+                        className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  {pagination.pages > 5 && (
+                    <span className="text-gray-400">...</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    const nextPage = Math.min(pagination.pages, currentPage + 1);
+                    setCurrentPage(nextPage);
+                    fetchOrders(nextPage);
+                  }}
+                  disabled={currentPage === pagination.pages}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  下一页
+                </button>
+              </>
+            )}
+            
+            {/* Total Records - Always show */}
+            <div className="h-6 w-px bg-gray-300"></div>
+            
+            <span className="text-sm text-gray-500">
+              共 {pagination.total} 条记录
+            </span>
           </div>
-        )}
       </div>
       
       <OrderDetailModal />

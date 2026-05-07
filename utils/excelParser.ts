@@ -33,19 +33,19 @@ export const FIELD_DISPLAY_NAMES: Record<string, string> = {
   remark: '备注',
 };
 
-// Common aliases for field matching
+// Common aliases for field matching (supports both Chinese and English)
 export const FIELD_ALIASES: Record<string, string[]> = {
-  external_code: ['外部编码', '订单号', '单号', '订单编号', '运单号', 'tracking_no', 'tracking', 'order_id', 'order_no', 'external'],
-  sender_name: ['发件人姓名', '寄件人姓名', '发件人', '寄件人', 'sender', 'sender_name', 'from_name', 'shipper'],
-  sender_phone: ['发件人电话', '寄件人电话', '发件人手机', '寄件人手机', 'sender_phone', 'sender_tel', 'from_phone', 'shipper_phone'],
-  sender_address: ['发件人地址', '寄件人地址', '发件地址', '寄件地址', 'sender_address', 'from_address', 'shipper_address'],
-  receiver_name: ['收件人姓名', '收货人姓名', '收件人', '收货人', 'receiver', 'receiver_name', 'to_name', 'consignee'],
-  receiver_phone: ['收件人电话', '收货人电话', '收件人手机', '收货人手机', 'receiver_phone', 'receiver_tel', 'to_phone', 'consignee_phone'],
-  receiver_address: ['收件人地址', '收货人地址', '收件地址', '收货地址', 'receiver_address', 'to_address', 'consignee_address'],
-  weight: ['重量', 'weight', 'kg', '重量(kg)', '货物重量', '毛重'],
-  quantity: ['件数', '数量', '包裹数', 'quantity', 'pieces', 'count', 'num'],
-  temperature: ['温层', '温度', '温度要求', 'temp', 'temperature', '冷藏', '冷冻', '常温'],
-  remark: ['备注', '备注信息', '说明', 'remark', 'notes', 'comment'],
+  external_code: ['外部编码', '订单号', '单号', '订单编号', '运单号', '外部订单号', 'tracking_no', 'tracking', 'order_id', 'order_no', 'external', 'code', 'ref_no', 'reference', 'ref_code', 'ref code', '客户单号'],
+  sender_name: ['发件人姓名', '寄件人姓名', '发件人', '寄件人', '发货人姓名', '发货人', 'sender', 'sender_name', 'from_name', 'shipper', 'shipper_name', 'from', 'sender name'],
+  sender_phone: ['发件人电话', '寄件人电话', '发件人手机', '寄件人手机', '发货人电话', '发货电话', 'sender_phone', 'sender_tel', 'from_phone', 'shipper_phone', 'sender_phone_number', 'sender_mobile', 'from_tel', 'from_mobile', 'phone', 'tel', 'mobile', 'phone_number', 'contact', 'sender tel', '发件电话'],
+  sender_address: ['发件人地址', '寄件人地址', '发件地址', '寄件地址', '发货人地址', '发货地址', 'sender_address', 'from_address', 'shipper_address', 'from_addr', 'sender_addr', 'address', 'addr', 'location', 'street', 'from_address1', 'sender address', '发件地址'],
+  receiver_name: ['收件人姓名', '收货人姓名', '收件人', '收货人', 'receiver', 'receiver_name', 'to_name', 'consignee', 'consignee_name', 'to', 'receiver name'],
+  receiver_phone: ['收件人电话', '收货人电话', '收件人手机', '收货人手机', '收货电话', 'receiver_phone', 'receiver_tel', 'to_phone', 'consignee_phone', 'receiver_phone_number', 'receiver_mobile', 'to_tel', 'to_mobile', 'receiver tel', '收件电话'],
+  receiver_address: ['收件人地址', '收货人地址', '收件地址', '收货地址', 'receiver_address', 'to_address', 'consignee_address', 'to_addr', 'receiver_addr', 'delivery_address', 'shipping_address', 'receiver address', '收件地址'],
+  weight: ['重量', 'weight', 'kg', '重量(kg)', '货物重量', '毛重', 'weight_kg', 'w', 'weight (kg)', 'gross_weight', 'weight(kg)', '重量(KG)'],
+  quantity: ['件数', '数量', '包裹数', 'quantity', 'pieces', 'count', 'num', 'qty', 'pcs', 'no_of_pieces', 'number_of_items'],
+  temperature: ['温层', '温度', '温度要求', 'temp', 'temperature', '冷藏', '冷冻', '常温', 'temp_control', 'storage_condition', 'cold_chain', 'refrigerated', 'frozen', 'ambient', 'temp zone'],
+  remark: ['备注', '备注信息', '说明', 'remark', 'notes', 'comment', 'remarks', 'note', 'instructions', '附言'],
 };
 
 export function parseExcel(file: Buffer): { headers: string[]; rows: any[][] } {
@@ -58,6 +58,7 @@ export function parseExcel(file: Buffer): { headers: string[]; rows: any[][] } {
   try {
     workbook = XLSX.read(file, { type: 'buffer' });
   } catch (error) {
+    console.error('Excel parsing error:', error);
     throw new Error('文件格式错误，无法解析为Excel文件，请确保文件未损坏');
   }
   
@@ -66,43 +67,178 @@ export function parseExcel(file: Buffer): { headers: string[]; rows: any[][] } {
     throw new Error('Excel文件中没有找到有效的工作表(Sheet)');
   }
   
-  const sheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[sheetName];
+  // Find the first sheet with actual data (prioritize sheets with specific names)
+  let worksheet = null;
+  let sheetName = '';
   
-  if (!worksheet) {
-    throw new Error(`无法读取工作表 "${sheetName}" 的内容`);
+  // Preferred sheet names (in order of priority)
+  const preferredSheetNames = ['订单数据', '数据', '订单', '运单', '发货', '导入', 'import', 'data', 'orders', 'shipments'];
+  
+  // First pass: look for preferred sheet names
+  for (const preferredName of preferredSheetNames) {
+    for (const name of workbook.SheetNames) {
+      if (name.toLowerCase().includes(preferredName.toLowerCase())) {
+        worksheet = workbook.Sheets[name];
+        sheetName = name;
+        break;
+      }
+    }
+    if (worksheet) break;
   }
   
-  const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  // Second pass: look for any sheet with data if preferred not found
+  if (!worksheet) {
+    for (const name of workbook.SheetNames) {
+      const sheet = workbook.Sheets[name];
+      if (sheet) {
+        // Check if this sheet has data by looking at the range
+        const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A1');
+        if (range.e.r > 0 || range.e.c > 0) {
+          worksheet = sheet;
+          sheetName = name;
+          break;
+        }
+      }
+    }
+  }
+  
+  if (!worksheet) {
+    throw new Error('Excel文件中没有找到包含数据的工作表');
+  }
+  
+  // Use raw mode to preserve all cell values including merged cells
+  const data = XLSX.utils.sheet_to_json(worksheet, { 
+    header: 1,
+    raw: false,
+    dateNF: 'yyyy-mm-dd hh:mm:ss',
+  });
   
   if (!data || data.length === 0) {
     throw new Error('工作表内容为空，请确保Excel文件中包含数据');
   }
   
-  if (data.length === 1) {
-    const firstRow = data[0] as any[];
-    if (!firstRow || firstRow.length === 0) {
-      throw new Error('工作表只有标题行，没有数据内容');
+  // Find the header row (support grouped format with merged cells and description rows)
+  let headerRowIndex = 0;
+  let foundHeaders = false;
+  
+  // Patterns for grouped headers (like "发件方信息", "收件方信息", "货物信息")
+  const groupHeaderPatterns = [
+    /发件方信息/i, /寄件方信息/i, /发货方信息/i,
+    /收件方信息/i, /收货方信息/i,
+    /货物信息/i, /商品信息/i, /物品信息/i,
+    /订单信息/i, /运单信息/i,
+  ];
+  
+  // Patterns for description/instructions rows that should be skipped
+  const descriptionPatterns = [
+    /说明/i, /注意/i, /提示/i, /必填/i, /可选/i,
+    /must/i, /required/i, /optional/i, /note/i,
+    /remark/i, /comment/i, /instruction/i,
+  ];
+  
+  // Look for the first row that contains actual field names
+  for (let i = 0; i < Math.min(data.length, 20); i++) {
+    const row = data[i] as any[];
+    if (!row) continue;
+    
+    const nonEmptyCells = row.filter(cell => cell !== undefined && cell !== null && String(cell).trim() !== '');
+    if (nonEmptyCells.length === 0) continue;
+    
+    // Check if this row looks like a group header (merged cell titles)
+    const isGroupHeader = nonEmptyCells.length <= 3 && 
+      nonEmptyCells.every(cell => {
+        const str = String(cell).trim();
+        return groupHeaderPatterns.some(pattern => pattern.test(str));
+      });
+    
+    // Check if this row looks like a description/instructions row
+    const isDescriptionRow = nonEmptyCells.length === 1 && 
+      descriptionPatterns.some(pattern => pattern.test(String(nonEmptyCells[0]).trim()));
+    
+    // If it's a group header row or description row, skip it and continue searching
+    if (!isGroupHeader && !isDescriptionRow) {
+      headerRowIndex = i;
+      foundHeaders = true;
+      break;
     }
   }
   
-  const headers = (data[0] as any[]).map((h: any) => String(h || '').trim());
-  
-  // Check if headers are all empty
-  if (headers.every(h => h === '')) {
+  if (!foundHeaders) {
     throw new Error('无法识别表头，请确保第一行包含列名');
   }
   
-  const rows = data.slice(1) as any[][];
+  const headers = (data[headerRowIndex] as any[]).map((h: any) => {
+    const header = String(h || '').trim();
+    // Clean common header issues
+    return header
+      .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
+      .replace(/^\s+|\s+$/g, '') // Trim whitespace
+      .replace(/[\r\n]/g, ''); // Remove line breaks
+  });
   
-  // Filter out completely empty rows
-  const filteredRows = rows.filter(row => row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== ''));
+  // Check if headers are all empty
+  const nonEmptyHeaders = headers.filter(h => h !== '');
+  if (nonEmptyHeaders.length === 0) {
+    throw new Error('无法识别表头，请确保第一行包含列名');
+  }
+  
+  console.log('Parsed headers:', headers);
+  
+  const rows = data.slice(headerRowIndex + 1) as any[][];
+  
+  // Fill merged cells - propagate values from previous rows
+  const filledRows: any[][] = [];
+  let previousRow: any[] = [];
+  
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const filledRow: any[] = [];
+    
+    for (let j = 0; j < headers.length; j++) {
+      const cellValue = row[j];
+      const isEmpty = cellValue === undefined || cellValue === null || String(cellValue).trim() === '';
+      
+      if (isEmpty && previousRow[j] !== undefined && previousRow[j] !== null) {
+        // Fill with value from previous row (handles merged cells)
+        filledRow[j] = previousRow[j];
+      } else {
+        filledRow[j] = cellValue;
+      }
+    }
+    
+    filledRows.push(filledRow);
+    previousRow = filledRow;
+  }
+  
+  // Filter out completely empty rows and header-like rows
+  const filteredRows = filledRows.filter(row => {
+    // Check if row has at least some actual data (not just empty or header-like content)
+    const hasData = row.some(cell => {
+      if (cell === undefined || cell === null) return false;
+      const str = String(cell).trim();
+      return str !== '' && !isHeaderLike(str);
+    });
+    return hasData;
+  });
   
   if (filteredRows.length === 0) {
     throw new Error('工作表中没有有效数据行，请确保数据区域包含内容');
   }
   
+  console.log(`Found ${filteredRows.length} data rows`);
+  
   return { headers, rows: filteredRows };
+}
+
+// Helper function to check if a string looks like a header
+function isHeaderLike(str: string): boolean {
+  const headerPatterns = [
+    /^序号$/, /^编号$/, /^行号$/,
+    /^合计$/, /^总计$/, /^小计$/,
+    /^汇总$/, /^合计行$/, /^summary$/i,
+    /^total$/i, /^subtotal$/i,
+  ];
+  return headerPatterns.some(pattern => pattern.test(str));
 }
 
 export function matchTemplate(headers: string[]): Record<string, number> {

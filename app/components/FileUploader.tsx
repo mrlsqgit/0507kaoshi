@@ -7,7 +7,7 @@ import { useState, useCallback, useRef } from 'react';
 import { Upload, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface FileUploaderProps {
-  onFileUpload: (file: File) => void;
+  onFileUpload: (file: File) => Promise<void>;
   disabled?: boolean;
 }
 
@@ -47,7 +47,7 @@ export default function FileUploader({ onFileUpload, disabled }: FileUploaderPro
     }
   }, []);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     // Reset status
     setUploadStatus('idle');
     setErrorMessage(null);
@@ -78,7 +78,16 @@ export default function FileUploader({ onFileUpload, disabled }: FileUploaderPro
     // All validations passed
     setFileName(file.name);
     setUploadStatus('uploading');
-    onFileUpload(file);
+    
+    try {
+      await onFileUpload(file);
+      // If we get here and still on this tab, reset status
+      // (successful upload should have navigated to preview tab)
+    } catch (error) {
+      console.error('File upload failed:', error);
+      setUploadStatus('error');
+      setErrorMessage('❌ 文件上传失败，请重试');
+    }
   };
 
   const handleClear = () => {

@@ -9,28 +9,58 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const externalCode = searchParams.get('externalCode');
     const receiverName = searchParams.get('receiverName');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
     const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const pageSize = parseInt(searchParams.get('pageSize') || '10');
     
-    let sql = 'SELECT * FROM orders ORDER BY created_at DESC';
+    let sql = 'SELECT * FROM orders';
+    let countSql = 'SELECT COUNT(*) FROM orders';
     const params: any[] = [];
+    const countParams: any[] = [];
+    const conditions: string[] = [];
     
     if (externalCode) {
-      sql = sql.replace('ORDER BY', `WHERE external_code ILIKE $${params.length + 1} ORDER BY`);
+      conditions.push(`external_code ILIKE $${params.length + 1}`);
       params.push(`%${externalCode}%`);
+      countParams.push(`%${externalCode}%`);
     }
     
     if (receiverName) {
-      const connector = params.length > 0 ? 'AND' : 'WHERE';
-      sql = sql.replace('ORDER BY', ` ${connector} receiver_name ILIKE $${params.length + 1} ORDER BY`);
+      conditions.push(`receiver_name ILIKE $${params.length + 1}`);
       params.push(`%${receiverName}%`);
+      countParams.push(`%${receiverName}%`);
     }
+    
+    if (startDate) {
+      conditions.push(`created_at >= $${params.length + 1}`);
+      params.push(new Date(startDate).toISOString());
+      countParams.push(new Date(startDate).toISOString());
+    }
+    
+    if (endDate) {
+      conditions.push(`created_at <= $${params.length + 1}`);
+      params.push(new Date(endDate).toISOString());
+      countParams.push(new Date(endDate).toISOString());
+    }
+    
+    // Add WHERE clause if there are conditions
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+      countSql += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    // Add ORDER BY
+    sql += ' ORDER BY created_at DESC';
     
     // Pagination
     const offset = (page - 1) * pageSize;
-    const countResult = await query('SELECT COUNT(*) FROM orders');
+    
+    // Get total count with filters applied
+    const countResult = await query(countSql, countParams);
     const total = parseInt(countResult.rows[0].count);
     
+    // Add LIMIT and OFFSET
     sql += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(pageSize, offset);
     
