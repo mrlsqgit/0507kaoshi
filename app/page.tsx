@@ -549,10 +549,8 @@ function OrdersHistory() {
     if (isNaN(date.getTime())) {
       return dateString;
     }
-    // Convert to UTC+8 timezone
-    const offset = 8 * 60; // UTC+8 in minutes
-    const utcDate = new Date(date.getTime() + offset * 60 * 1000);
-    return utcDate.toLocaleString('zh-CN', {
+    // Convert to Asia/Shanghai timezone (UTC+8)
+    return date.toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -560,6 +558,7 @@ function OrdersHistory() {
       minute: '2-digit',
       second: '2-digit',
       hour12: false,
+      timeZone: 'Asia/Shanghai',
     });
   };
 
