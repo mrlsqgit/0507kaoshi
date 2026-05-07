@@ -318,44 +318,50 @@ export default function Home() {
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         {activeTab === 'upload' && (
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto animate-fade-in">
             {/* Hero Card */}
-            <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-8 text-white mb-8 shadow-xl shadow-indigo-500/25">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2">欢迎使用万能导入系统</h2>
-                  <p className="text-white/80 mb-4">
-                    支持多种Excel模板自动识别，一键批量下单，让您的物流工作更高效
+            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-3xl p-8 text-white mb-8 shadow-2xl shadow-indigo-500/30">
+              {/* Decorative background elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+              
+              <div className="relative z-10 flex items-start justify-between">
+                <div className="flex-1">
+                  <h2 className="text-3xl font-bold mb-3 tracking-tight">万能导入系统</h2>
+                  <p className="text-white/90 mb-6 text-lg">
+                    智能识别多种Excel模板，一键批量下单，让物流工作更高效
                   </p>
                   <div className="flex flex-wrap gap-3">
-                    <span className="px-3 py-1 bg-white/20 rounded-full text-sm">智能模板识别</span>
-                    <span className="px-3 py-1 bg-white/20 rounded-full text-sm">1000+数据支持</span>
-                    <span className="px-3 py-1 bg-white/20 rounded-full text-sm">实时错误校验</span>
-                    <span className="px-3 py-1 bg-white/20 rounded-full text-sm">一键提交</span>
+                    <span className="px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">智能模板识别</span>
+                    <span className="px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">1000+数据支持</span>
+                    <span className="px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">实时错误校验</span>
+                    <span className="px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">一键提交</span>
                   </div>
                 </div>
-                <div className="w-24 h-24 bg-white/10 rounded-2xl flex items-center justify-center">
-                  <FileSpreadsheet className="w-12 h-12" />
+                <div className="w-28 h-28 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+                  <FileSpreadsheet className="w-14 h-14" />
                 </div>
               </div>
             </div>
             
             {/* Upload Card */}
-            <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8 mb-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                  <Upload className="w-5 h-5 text-white" />
+            <div className="gradient-card rounded-3xl shadow-card p-8 mb-8 hover:shadow-card-hover transition-shadow duration-300">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                  <Upload className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">上传 Excel 文件</h3>
+                  <h3 className="text-xl font-semibold text-gray-900">上传 Excel 文件</h3>
                   <p className="text-sm text-gray-500">支持 .xlsx 和 .xls 格式，拖拽或点击上传</p>
                 </div>
               </div>
               
-              <FileUploader onFileUpload={handleFileUpload} disabled={uploading} />
+              <div className="animate-slide-up">
+                <FileUploader onFileUpload={handleFileUpload} disabled={uploading} />
+              </div>
               
               {uploading && (
-                <div className="mt-6">
+                <div className="mt-6 animate-scale-in">
                   <ProgressBar 
                     progress={uploadProgress} 
                     text="正在解析文件..."
@@ -364,17 +370,44 @@ export default function Home() {
               )}
             </div>
             
+            {/* Features Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-200 transition-all duration-300">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-3">
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-1">极速上传</h4>
+                <p className="text-sm text-gray-500">支持最大10MB文件，秒级解析</p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-200 transition-all duration-300">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center mb-3">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-1">智能校验</h4>
+                <p className="text-sm text-gray-500">实时数据验证，错误即时提示</p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-200 transition-all duration-300">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-3">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-1">高效管理</h4>
+                <p className="text-sm text-gray-500">历史记录可查，数据永久保存</p>
+              </div>
+            </div>
+            
             {/* Template Downloader */}
-            <TemplateDownloader />
+            <div className="animate-slide-up">
+              <TemplateDownloader />
+            </div>
           </div>
         )}
 
         {activeTab === 'preview' && parsedRows.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-6">
+          <div className="gradient-card rounded-3xl shadow-card p-6 animate-fade-in">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center">
-                  <FileSpreadsheet className="w-5 h-5 text-white" />
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30">
+                  <FileSpreadsheet className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">数据预览</h3>
