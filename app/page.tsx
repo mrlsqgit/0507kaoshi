@@ -346,9 +346,11 @@ function OrdersHistory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, pages: 1 });
+  const [error, setError] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async (page = 1) => {
     setLoading(true);
+    setError(null);
     try {
       const url = new URL('/api/orders', window.location.origin);
       url.searchParams.set('page', String(page));
@@ -363,9 +365,12 @@ function OrdersHistory() {
       if (result.success) {
         setOrders(result.data);
         setPagination(result.pagination);
+      } else {
+        setError(result.message || '获取订单失败');
       }
     } catch (error) {
       console.error('Fetch orders error:', error);
+      setError('网络连接失败，请检查网络或稍后重试');
     } finally {
       setLoading(false);
     }
@@ -386,6 +391,42 @@ function OrdersHistory() {
       <div className="bg-white rounded-xl shadow-sm p-6">
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+          <span className="ml-3 text-gray-600">加载中...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">历史运单</h2>
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="搜索收件人姓名..."
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              搜索
+            </button>
+          </form>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+          <p className="text-red-700">⚠️ {error}</p>
+          <p className="text-sm text-red-600 mt-2">请检查数据库连接配置，确保 DATABASE_URL 环境变量已正确设置</p>
+          <button
+            onClick={() => fetchOrders()}
+            className="mt-3 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            重新加载
+          </button>
         </div>
       </div>
     );
@@ -434,17 +475,33 @@ function OrdersHistory() {
             </tr>
           </thead>
           <tbody>
-            {orders.map(order => (
-              <tr key={order.id} className="border-b hover:bg-gray-50">
-                <td className="px-4 py-3 text-sm text-gray-800">{order.id}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{order.external_code || '-'}</td>
-                <td className="px-4 py-3 text-sm text-gray-800">{order.sender_name}</td>
-                <td className="px-4 py-3 text-sm text-gray-800">{order.receiver_name}</td>
-                <td className="px-4 py-3 text-sm text-gray-500">
-                  {new Date(order.created_at).toLocaleString('zh-CN')}
+            {orders.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center">
+                  <div className="bg-gray-50 rounded-lg p-8">
+                    <div className="text-4xl mb-4">📦</div>
+                    <p className="text-gray-600 font-medium mb-2">暂无历史运单</p>
+                    <p className="text-sm text-gray-500">
+                      {searchTerm 
+                        ? '未找到匹配的运单，请尝试其他搜索条件' 
+                        : '还没有提交过订单，请先上传Excel文件并提交下单'}
+                    </p>
+                  </div>
                 </td>
               </tr>
-            ))}
+            ) : (
+              orders.map(order => (
+                <tr key={order.id} className="border-b hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm text-gray-800">{order.id}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{order.external_code || '-'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-800">{order.sender_name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-800">{order.receiver_name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {new Date(order.created_at).toLocaleString('zh-CN')}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

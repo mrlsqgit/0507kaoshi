@@ -50,7 +50,11 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error fetching orders:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to fetch orders' },
+      { 
+        success: false, 
+        error: error.message || 'Failed to fetch orders',
+        message: '获取订单列表失败，请检查数据库连接'
+      },
       { status: 500 }
     );
   }
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
     
     if (!orders || orders.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'No orders provided' },
+        { success: false, error: 'No orders provided', message: '没有提供订单数据' },
         { status: 400 }
       );
     }
@@ -94,19 +98,27 @@ export async function POST(request: NextRequest) {
       } catch (err: any) {
         failedCount++;
         errors.push(`${order.external_code || 'Unknown'}: ${err.message}`);
+        console.error('Failed to insert order:', err.message);
       }
     }
     
     return NextResponse.json({
-      success: true,
+      success: failedCount === 0,
       successCount,
       failedCount,
       errors,
+      message: failedCount === 0 
+        ? `成功提交 ${successCount} 条订单` 
+        : `成功提交 ${successCount} 条订单，失败 ${failedCount} 条`,
     });
   } catch (error: any) {
     console.error('Error creating orders:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to create orders' },
+      { 
+        success: false, 
+        error: error.message || 'Failed to create orders',
+        message: '提交订单失败，请检查数据库连接'
+      },
       { status: 500 }
     );
   }
