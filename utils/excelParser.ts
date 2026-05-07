@@ -49,19 +49,60 @@ export const FIELD_ALIASES: Record<string, string[]> = {
 };
 
 export function parseExcel(file: Buffer): { headers: string[]; rows: any[][] } {
-  const workbook = XLSX.read(file, { type: 'buffer' });
+  // Check for empty file
+  if (!file || file.length === 0) {
+    throw new Error('文件为空，请选择有效的Excel文件');
+  }
+  
+  let workbook;
+  try {
+    workbook = XLSX.read(file, { type: 'buffer' });
+  } catch (error) {
+    throw new Error('文件格式错误，无法解析为Excel文件，请确保文件未损坏');
+  }
+  
+  // Check for valid sheets
+  if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+    throw new Error('Excel文件中没有找到有效的工作表(Sheet)');
+  }
+  
   const sheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[sheetName];
+  
+  if (!worksheet) {
+    throw new Error(`无法读取工作表 "${sheetName}" 的内容`);
+  }
+  
   const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
   
   if (!data || data.length === 0) {
-    throw new Error('文件内容为空');
+    throw new Error('工作表内容为空，请确保Excel文件中包含数据');
+  }
+  
+  if (data.length === 1) {
+    const firstRow = data[0] as any[];
+    if (!firstRow || firstRow.length === 0) {
+      throw new Error('工作表只有标题行，没有数据内容');
+    }
   }
   
   const headers = (data[0] as any[]).map((h: any) => String(h || '').trim());
+  
+  // Check if headers are all empty
+  if (headers.every(h => h === '')) {
+    throw new Error('无法识别表头，请确保第一行包含列名');
+  }
+  
   const rows = data.slice(1) as any[][];
   
-  return { headers, rows };
+  // Filter out completely empty rows
+  const filteredRows = rows.filter(row => row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== ''));
+  
+  if (filteredRows.length === 0) {
+    throw new Error('工作表中没有有效数据行，请确保数据区域包含内容');
+  }
+  
+  return { headers, rows: filteredRows };
 }
 
 export function matchTemplate(headers: string[]): Record<string, number> {
